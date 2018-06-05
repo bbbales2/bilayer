@@ -31,7 +31,7 @@ M = matrix(0, nrow = N, ncol = N)
 for(i in 1:N) {
   for(j in 1:N) {
     K[i, j] = cs[1] * inner_dx(i - 1, j - 1, 0, B) + cs[2] * inner_dx(i - 1, j - 1, B, X)
-    M[i, j] = densities[1] * inner(i - 1, j - 1, 0, B) + densities[1] * inner(i - 1, j - 1, B, X)
+    M[i, j] = densities[1] * inner(i - 1, j - 1, 0, B) + densities[2] * inner(i - 1, j - 1, B, X)
   }
 }
 
