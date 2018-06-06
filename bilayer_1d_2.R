@@ -2,7 +2,7 @@ library(tidyverse)
 library(ggplot2)
 library(geigen)
 
-N = 100
+N = 2
 X = 1.0
 xs = seq(0.0, X, length = N)
 m = as.integer(0.2307692 * N)

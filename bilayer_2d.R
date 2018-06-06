@@ -13,12 +13,12 @@ B = 0.2307692
 Cvoigt = function(cm) {
   C = array(0, c(3, 3, 3, 3))
 
-  voigt = list(list(c(0, 0)),
-               list(c(1, 1)),
+  voigt = list(list(c(1, 1)),
                list(c(2, 2)),
-               list(c(1, 2), c(2, 1)),
-               list(c(0, 2), c(2, 0)),
-               list(c(0, 1), c(1, 0)))
+               list(c(3, 3)),
+               list(c(2, 3), c(3, 2)),
+               list(c(1, 3), c(3, 1)),
+               list(c(1, 2), c(2, 1)))
 
   for(i in 1:6) {
     for(j in 1:6) {
