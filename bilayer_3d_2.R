@@ -18,7 +18,7 @@ cm[1, 3] = 0.1
 cm[3, 1] = 0.1
 cm[2, 3] = 0.1
 cm[3, 2] = 0.1
-B = 0.8
+B = 0.5
 m = which.min(abs(B - zs))
 
 Cvoigt = function(cm) {
@@ -48,7 +48,7 @@ Cvoigt = function(cm) {
   C
 }
 
-cs = list(Cvoigt(cm), Cvoigt(cm))
+cs = list(Cvoigt(cm), 3 * Cvoigt(cm))
 
 inner = function(i0, i1, j0, j1) {
   # int_0_X x^i0 * x^i1 dx
@@ -74,117 +74,141 @@ for(i in 0:IN) {
 }
 N = length(idxs)
 
-dinp = array(0, c(N, N, 3, 3))
-inp = array(0, c(N, N))
+dinp = array(0, c(2, N, N, 3, 3))
+inp = array(0, c(2, N, N))
 
-for(n0 in 1:N) {
-  for(n1 in 1:N) {
-    i0 = idxs[[n0]][1]
-    j0 = idxs[[n0]][2]
-    k0 = idxs[[n0]][3]
-    i1 = idxs[[n1]][1]
-    j1 = idxs[[n1]][2]
-    k1 = idxs[[n1]][3]
-    
-    if(k0 != k1) {
-      next
+for(ii in 1:length(densities)) {
+  for(n0 in 1:N) {
+    for(n1 in 1:N) {
+      i0 = idxs[[n0]][1]
+      j0 = idxs[[n0]][2]
+      k0 = idxs[[n0]][3]
+      i1 = idxs[[n1]][1]
+      j1 = idxs[[n1]][2]
+      k1 = idxs[[n1]][3]
+      
+      if(ii == 1) {
+        if(k0 >= m) {
+          next
+        }
+      } else {
+        if(k0 < m) {
+          next
+        }
+      }
+      
+      if(k0 != k1) {
+        next
+      }
+      
+      if(k0 == KN) {
+        next
+      }
+  
+      tmp = i0 * i1 * inner(i0 - 1, i1 - 1, j0, j1) * (zs[k0 + 1] - zs[k0]) / 3.0 # f0f1
+      dinp[ii, n0, n1, 1, 1] = dinp[ii, n0, n1, 1, 1] + tmp
+      dinp[ii, n0 + 1, n1, 1, 1] = dinp[ii, n0 + 1, n1, 1, 1] + tmp / 2.0
+      dinp[ii, n0, n1 + 1, 1, 1] = dinp[ii, n0, n1 + 1, 1, 1] + tmp / 2.0
+      dinp[ii, n0 + 1, n1 + 1, 1, 1] = dinp[ii, n0 + 1, n1 + 1, 1, 1] + tmp
+  
+      tmp = i0 * j1 * inner(i0 - 1, i1, j0, j1 - 1) * (zs[k0 + 1] - zs[k0]) / 3.0 # f0f1
+      dinp[ii, n0, n1, 1, 2] = dinp[ii, n0, n1, 1, 2] + tmp
+      dinp[ii, n0 + 1, n1, 1, 2] = dinp[ii, n0 + 1, n1, 1, 2] + tmp / 2.0
+      dinp[ii, n0, n1 + 1, 1, 2] = dinp[ii, n0, n1 + 1, 1, 2] + tmp / 2.0
+      dinp[ii, n0 + 1, n1 + 1, 1, 2] = dinp[ii, n0 + 1, n1 + 1, 1, 2] + tmp
+  
+      tmp = i0 * inner(i0 - 1, i1, j0, j1) # f0df1
+      dinp[ii, n0, n1, 1, 3] = dinp[ii, n0, n1, 1, 3] - tmp / 2.0
+      dinp[ii, n0 + 1, n1, 1, 3] = dinp[ii, n0 + 1, n1, 1, 3] - tmp / 2.0
+      dinp[ii, n0, n1 + 1, 1, 3] = dinp[ii, n0, n1 + 1, 1, 3] + tmp / 2.0
+      dinp[ii, n0 + 1, n1 + 1, 1, 3] = dinp[ii, n0 + 1, n1 + 1, 1, 3] + tmp / 2.0
+  
+      tmp = j0 * i1 * inner(i0, i1 - 1, j0 - 1, j1) * (zs[k0 + 1] - zs[k0]) / 3.0 # f0f1
+      dinp[ii, n0, n1, 2, 1] = dinp[ii, n0, n1, 2, 1] + tmp
+      dinp[ii, n0 + 1, n1, 2, 1] = dinp[ii, n0 + 1, n1, 2, 1] + tmp / 2.0
+      dinp[ii, n0, n1 + 1, 2, 1] = dinp[ii, n0, n1 + 1, 2, 1] + tmp / 2.0
+      dinp[ii, n0 + 1, n1 + 1, 2, 1] = dinp[ii, n0 + 1, n1 + 1, 2, 1] + tmp
+  
+      tmp = j0 * j1 * inner(i0, i1, j0 - 1, j1 - 1) * (zs[k0 + 1] - zs[k0]) / 3.0 # f0f1
+      dinp[ii, n0, n1, 2, 2] = dinp[ii, n0, n1, 2, 2] + tmp
+      dinp[ii, n0 + 1, n1, 2, 2] = dinp[ii, n0 + 1, n1, 2, 2] + tmp / 2.0
+      dinp[ii, n0, n1 + 1, 2, 2] = dinp[ii, n0, n1 + 1, 2, 2] + tmp / 2.0
+      dinp[ii, n0 + 1, n1 + 1, 2, 2] = dinp[ii, n0 + 1, n1 + 1, 2, 2] + tmp
+  
+      tmp = j0 * inner(i0, i1, j0 - 1, j1) # f0df1
+      dinp[ii, n0, n1, 2, 3] = dinp[ii, n0, n1, 2, 3] - tmp / 2.0
+      dinp[ii, n0 + 1, n1, 2, 3] = dinp[ii, n0 + 1, n1, 2, 3] - tmp / 2.0
+      dinp[ii, n0, n1 + 1, 2, 3] = dinp[ii, n0, n1 + 1, 2, 3] + tmp / 2.0
+      dinp[ii, n0 + 1, n1 + 1, 2, 3] = dinp[ii, n0 + 1, n1 + 1, 2, 3] + tmp / 2.0
+  
+      tmp = i1 * inner(i0, i1 - 1, j0, j1) # df0f1
+      dinp[ii, n0, n1, 3, 1] = dinp[ii, n0, n1, 3, 1] - tmp / 2.0
+      dinp[ii, n0 + 1, n1, 3, 1] = dinp[ii, n0 + 1, n1, 3, 1] + tmp / 2.0
+      dinp[ii, n0, n1 + 1, 3, 1] = dinp[ii, n0, n1 + 1, 3, 1] - tmp / 2.0
+      dinp[ii, n0 + 1, n1 + 1, 3, 1] = dinp[ii, n0 + 1, n1 + 1, 3, 1] + tmp / 2.0
+  
+      tmp = j1 * inner(i0, i1, j0, j1 - 1) # df0f1
+      dinp[ii, n0, n1, 3, 2] = dinp[ii, n0, n1, 3, 2] - tmp / 2.0
+      dinp[ii, n0 + 1, n1, 3, 2] = dinp[ii, n0 + 1, n1, 3, 2] + tmp / 2.0
+      dinp[ii, n0, n1 + 1, 3, 2] = dinp[ii, n0, n1 + 1, 3, 2] - tmp / 2.0
+      dinp[ii, n0 + 1, n1 + 1, 3, 2] = dinp[ii, n0 + 1, n1 + 1, 3, 2] + tmp / 2.0
+  
+      tmp = inner(i0, i1, j0, j1) / (zs[k0 + 1] - zs[k0]) # df0df1
+      dinp[ii, n0, n1, 3, 3] = dinp[ii, n0, n1, 3, 3] + tmp
+      dinp[ii, n0 + 1, n1, 3, 3] = dinp[ii, n0 + 1, n1, 3, 3] - tmp
+      dinp[ii, n0, n1 + 1, 3, 3] = dinp[ii, n0, n1 + 1, 3, 3] - tmp
+      dinp[ii, n0 + 1, n1 + 1, 3, 3] = dinp[ii, n0 + 1, n1 + 1, 3, 3] + tmp
+      
+      tmp = inner(i0, i1, j0, j1) * (zs[k0 + 1] - zs[k0]) / 3.0
+      inp[ii, n0, n1] = inp[ii, n0, n1] + tmp
+      inp[ii, n0 + 1, n1] = inp[ii, n0 + 1, n1] + tmp / 2.0
+      inp[ii, n0, n1 + 1] = inp[ii, n0, n1 + 1] + tmp / 2.0
+      inp[ii, n0 + 1, n1 + 1] = inp[ii, n0 + 1, n1 + 1] + tmp
     }
-    
-    if(k0 == KN) {
-      next
-    }
-
-    tmp = i0 * i1 * inner(i0 - 1, i1 - 1, j0, j1) * (zs[k0 + 1] - zs[k0]) / 3.0 # f0f1
-    dinp[n0, n1, 1, 1] = dinp[n0, n1, 1, 1] + tmp
-    dinp[n0 + 1, n1, 1, 1] = dinp[n0 + 1, n1, 1, 1] + tmp / 2.0
-    dinp[n0, n1 + 1, 1, 1] = dinp[n0, n1 + 1, 1, 1] + tmp / 2.0
-    dinp[n0 + 1, n1 + 1, 1, 1] = dinp[n0 + 1, n1 + 1, 1, 1] + tmp
-
-    tmp = i0 * j1 * inner(i0 - 1, i1, j0, j1 - 1) * (zs[k0 + 1] - zs[k0]) / 3.0 # f0f1
-    dinp[n0, n1, 1, 2] = dinp[n0, n1, 1, 2] + tmp
-    dinp[n0 + 1, n1, 1, 2] = dinp[n0 + 1, n1, 1, 2] + tmp / 2.0
-    dinp[n0, n1 + 1, 1, 2] = dinp[n0, n1 + 1, 1, 2] + tmp / 2.0
-    dinp[n0 + 1, n1 + 1, 1, 2] = dinp[n0 + 1, n1 + 1, 1, 2] + tmp
-
-    tmp = i0 * inner(i0 - 1, i1, j0, j1) # f0df1
-    dinp[n0, n1, 1, 3] = dinp[n0, n1, 1, 3] - tmp / 2.0
-    dinp[n0 + 1, n1, 1, 3] = dinp[n0 + 1, n1, 1, 3] - tmp / 2.0
-    dinp[n0, n1 + 1, 1, 3] = dinp[n0, n1 + 1, 1, 3] + tmp / 2.0
-    dinp[n0 + 1, n1 + 1, 1, 3] = dinp[n0 + 1, n1 + 1, 1, 3] + tmp / 2.0
-
-    tmp = j0 * i1 * inner(i0, i1 - 1, j0 - 1, j1) * (zs[k0 + 1] - zs[k0]) / 3.0 # f0f1
-    dinp[n0, n1, 2, 1] = dinp[n0, n1, 2, 1] + tmp
-    dinp[n0 + 1, n1, 2, 1] = dinp[n0 + 1, n1, 2, 1] + tmp / 2.0
-    dinp[n0, n1 + 1, 2, 1] = dinp[n0, n1 + 1, 2, 1] + tmp / 2.0
-    dinp[n0 + 1, n1 + 1, 2, 1] = dinp[n0 + 1, n1 + 1, 2, 1] + tmp
-
-    tmp = j0 * j1 * inner(i0, i1, j0 - 1, j1 - 1) * (zs[k0 + 1] - zs[k0]) / 3.0 # f0f1
-    dinp[n0, n1, 2, 2] = dinp[n0, n1, 2, 2] + tmp
-    dinp[n0 + 1, n1, 2, 2] = dinp[n0 + 1, n1, 2, 2] + tmp / 2.0
-    dinp[n0, n1 + 1, 2, 2] = dinp[n0, n1 + 1, 2, 2] + tmp / 2.0
-    dinp[n0 + 1, n1 + 1, 2, 2] = dinp[n0 + 1, n1 + 1, 2, 2] + tmp
-
-    tmp = j0 * inner(i0, i1, j0 - 1, j1) # f0df1
-    dinp[n0, n1, 2, 3] = dinp[n0, n1, 2, 3] - tmp / 2.0
-    dinp[n0 + 1, n1, 2, 3] = dinp[n0 + 1, n1, 2, 3] - tmp / 2.0
-    dinp[n0, n1 + 1, 2, 3] = dinp[n0, n1 + 1, 2, 3] + tmp / 2.0
-    dinp[n0 + 1, n1 + 1, 2, 3] = dinp[n0 + 1, n1 + 1, 2, 3] + tmp / 2.0
-
-    tmp = i1 * inner(i0, i1 - 1, j0, j1) # df0f1
-    dinp[n0, n1, 3, 1] = dinp[n0, n1, 3, 1] - tmp / 2.0
-    dinp[n0 + 1, n1, 3, 1] = dinp[n0 + 1, n1, 3, 1] + tmp / 2.0
-    dinp[n0, n1 + 1, 3, 1] = dinp[n0, n1 + 1, 3, 1] - tmp / 2.0
-    dinp[n0 + 1, n1 + 1, 3, 1] = dinp[n0 + 1, n1 + 1, 3, 1] + tmp / 2.0
-
-    tmp = j1 * inner(i0, i1, j0, j1 - 1) # df0f1
-    dinp[n0, n1, 3, 2] = dinp[n0, n1, 3, 2] - tmp / 2.0
-    dinp[n0 + 1, n1, 3, 2] = dinp[n0 + 1, n1, 3, 2] + tmp / 2.0
-    dinp[n0, n1 + 1, 3, 2] = dinp[n0, n1 + 1, 3, 2] - tmp / 2.0
-    dinp[n0 + 1, n1 + 1, 3, 2] = dinp[n0 + 1, n1 + 1, 3, 2] + tmp / 2.0
-
-    tmp = inner(i0, i1, j0, j1) / (zs[k0 + 1] - zs[k0]) # df0df1
-    dinp[n0, n1, 3, 3] = dinp[n0, n1, 3, 3] + tmp
-    dinp[n0 + 1, n1, 3, 3] = dinp[n0 + 1, n1, 3, 3] - tmp
-    dinp[n0, n1 + 1, 3, 3] = dinp[n0, n1 + 1, 3, 3] - tmp
-    dinp[n0 + 1, n1 + 1, 3, 3] = dinp[n0 + 1, n1 + 1, 3, 3] + tmp
-    
-    tmp = inner(i0, i1, j0, j1) * (zs[k0 + 1] - zs[k0]) / 3.0
-    inp[n0, n1] = inp[n0, n1] + tmp
-    inp[n0 + 1, n1] = inp[n0 + 1, n1] + tmp / 2.0
-    inp[n0, n1 + 1] = inp[n0, n1 + 1] + tmp / 2.0
-    inp[n0 + 1, n1 + 1] = inp[n0 + 1, n1 + 1] + tmp
   }
 }
 
 K = matrix(0, nrow = 3 * N, ncol = 3 * N)
 M = matrix(0, nrow = 3 * N, ncol = 3 * N)
-for(n0 in 1:N) {
-  for(n1 in 1:N) {
-    k0 = idxs[[n0]][3]
-    k1 = idxs[[n1]][3]
-    #ii = if(k0 < m) 1 else 2
-    
-    for(i in 1:3) {
-      for(k in 1:3) {
-        total = 0.0
-        
-        for(j in 1:3) {
-          for(l in 1:3) {
-            total = total + cs[[1]][i, j, k, l] * dinp[n0, n1, j, l]
+for(ii in 1:length(densities)) {
+  for(n0 in 1:N) {
+    for(n1 in 1:N) {
+      k0 = idxs[[n0]][3]
+      k1 = idxs[[n1]][3]
+  
+      for(i in 1:3) {
+        for(k in 1:3) {
+          total = 0.0
+  
+          for(j in 1:3) {
+            for(l in 1:3) {
+              total = total + cs[[ii]][i, j, k, l] * dinp[ii, n0, n1, j, l]
+            }
           }
+  
+          K[3 * (n0 - 1) + i, 3 * (n1 - 1) + k] = K[3 * (n0 - 1) + i, 3 * (n1 - 1) + k] + total
         }
-        
-        K[3 * (n0 - 1) + i, 3 * (n1 - 1) + k] = total
+        M[3 * (n0 - 1) + i, 3 * (n1 - 1) + i] = M[3 * (n0 - 1) + i, 3 * (n1 - 1) + i] + densities[ii] * inp[ii, n0, n1]
       }
-      M[3 * (n0 - 1) + i, 3 * (n1 - 1) + i] = densities[1] * inp[n0, n1]
     }
   }
 }
 
 r = geigen(K, M, TRUE)
 
-print(r$values[7:14])
-# 3.734092 4.729633 4.734347 6.431031 6.615935 8.074131 8.519344 9.863590
+print(r$values[1:25])
+# 3.734092e+00  4.729633e+00  4.734347e+00  6.431031e+00  6.615935e+00  8.074131e+00
+# 3.024603e+00  3.202178e+00  3.542420e+00  5.058626e+00  5.895012e+00  6.216565e+00
+# 4.251224e+00  4.271725e+00  5.319324e+00  5.357855e+00  6.569780e+00  7.108487e+00
+
+# 3.692754e+00  4.687945e+00  4.724703e+00  6.199050e+00  6.611294e+00  7.909246e+00
+# 2.990619e+00  3.185342e+00  3.509285e+00  4.880287e+00  5.881217e+00  6.094774e+00
+# 4.206195e+00  4.308935e+00  5.259553e+00  5.323833e+00  6.564090e+00  7.043638e+00
+
+# 4.894889e+00  5.301620e+00  5.579165e+00  6.930004e+00  8.488756e+00  9.075953e+00
+
+# 4.850074e+00  5.304551e+00  5.724816e+00  7.078923e+00  8.783755e+00  9.096595e+00
+
 
 {
   xs = seq(0.0, X, length = 20)

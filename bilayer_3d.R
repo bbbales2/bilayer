@@ -3,13 +3,13 @@ library(tidyverse)
 library(ggplot2)
 library(geigen)
 
-IN = 10
-JN = 10
-KN = 10
+IN = 8
+JN = 8
+KN = 8
 X = 0.7
 Y = 1.2
-Z = 0.3
-densities = c(1.0, 1.0)
+Z = 1.0
+densities = c(1.0, 2.0)
 cm = diag(6)
 cm[1, 2] = 0.1
 cm[2, 1] = 0.1
@@ -17,7 +17,7 @@ cm[1, 3] = 0.1
 cm[3, 1] = 0.1
 cm[2, 3] = 0.1
 cm[3, 2] = 0.1
-B = 0.2307692
+B = 0.5
 
 Cvoigt = function(cm) {
   C = array(0, c(3, 3, 3, 3))
@@ -46,7 +46,7 @@ Cvoigt = function(cm) {
   C
 }
 
-cs = list(Cvoigt(cm), Cvoigt(cm))
+cs = list(Cvoigt(cm), 3 * Cvoigt(cm))
 
 inner = function(i0, i1, j0, j1, k0, k1, a, b) {
   # int_0_X x^i0 * x^i1 dx
@@ -73,55 +73,61 @@ for(i in 0:IN) {
 }
 N = length(idxs)
 
-dinp = array(0, c(N, N, 3, 3))
-inp = array(0, c(N, N))
+dinp = array(0, c(2, N, N, 3, 3))
+inp = array(0, c(2, N, N))
 
-for(n0 in 1:N) {
-  for(n1 in 1:N) {
-    i0 = idxs[[n0]][1]
-    j0 = idxs[[n0]][2]
-    k0 = idxs[[n0]][3]
-    i1 = idxs[[n1]][1]
-    j1 = idxs[[n1]][2]
-    k1 = idxs[[n1]][3]
-    
-    dinp[n0, n1, 1, 1] = i0 * i1 * inner(i0 - 1, i1 - 1, j0, j1, k0, k1, 0, Z)
-    dinp[n0, n1, 1, 2] = i0 * j1 * inner(i0 - 1, i1, j0, j1 - 1, k0, k1, 0, Z)
-    dinp[n0, n1, 1, 3] = i0 * k1 * inner(i0 - 1, i1, j0, j1, k0, k1 - 1, 0, Z)
-    dinp[n0, n1, 2, 1] = j0 * i1 * inner(i0, i1 - 1, j0 - 1, j1, k0, k1, 0, Z)
-    dinp[n0, n1, 2, 2] = j0 * j1 * inner(i0, i1, j0 - 1, j1 - 1, k0, k1, 0, Z)
-    dinp[n0, n1, 2, 3] = j0 * k1 * inner(i0, i1, j0 - 1, j1, k0, k1 - 1, 0, Z)
-    dinp[n0, n1, 3, 1] = k0 * i1 * inner(i0, i1 - 1, j0, j1, k0 - 1, k1, 0, Z)
-    dinp[n0, n1, 3, 2] = k0 * j1 * inner(i0, i1, j0, j1 - 1, k0 - 1, k1, 0, Z)
-    dinp[n0, n1, 3, 3] = k0 * k1 * inner(i0, i1, j0, j1, k0 - 1, k1 - 1, 0, Z)
-    inp[n0, n1] = inner(i0, i1, j0, j1, k0, k1, 0, Z)
+for(ii in 1:length(densities)) {
+  a = if(ii == 1) 0 else B
+  b = if(ii == 1) B else Z
+  for(n0 in 1:N) {
+    for(n1 in 1:N) {
+      i0 = idxs[[n0]][1]
+      j0 = idxs[[n0]][2]
+      k0 = idxs[[n0]][3]
+      i1 = idxs[[n1]][1]
+      j1 = idxs[[n1]][2]
+      k1 = idxs[[n1]][3]
+      
+      dinp[ii, n0, n1, 1, 1] = i0 * i1 * inner(i0 - 1, i1 - 1, j0, j1, k0, k1, a, b)
+      dinp[ii, n0, n1, 1, 2] = i0 * j1 * inner(i0 - 1, i1, j0, j1 - 1, k0, k1, a, b)
+      dinp[ii, n0, n1, 1, 3] = i0 * k1 * inner(i0 - 1, i1, j0, j1, k0, k1 - 1, a, b)
+      dinp[ii, n0, n1, 2, 1] = j0 * i1 * inner(i0, i1 - 1, j0 - 1, j1, k0, k1, a, b)
+      dinp[ii, n0, n1, 2, 2] = j0 * j1 * inner(i0, i1, j0 - 1, j1 - 1, k0, k1, a, b)
+      dinp[ii, n0, n1, 2, 3] = j0 * k1 * inner(i0, i1, j0 - 1, j1, k0, k1 - 1, a, b)
+      dinp[ii, n0, n1, 3, 1] = k0 * i1 * inner(i0, i1 - 1, j0, j1, k0 - 1, k1, a, b)
+      dinp[ii, n0, n1, 3, 2] = k0 * j1 * inner(i0, i1, j0, j1 - 1, k0 - 1, k1, a, b)
+      dinp[ii, n0, n1, 3, 3] = k0 * k1 * inner(i0, i1, j0, j1, k0 - 1, k1 - 1, a, b)
+      inp[ii, n0, n1] = inner(i0, i1, j0, j1, k0, k1, a, b)
+    }
   }
 }
 
 K = matrix(0, nrow = 3 * N, ncol = 3 * N)
 M = matrix(0, nrow = 3 * N, ncol = 3 * N)
-for(n0 in 1:N) {
-  for(n1 in 1:N) {
-    for(i in 1:3) {
-      for(k in 1:3) {
-        total = 0.0
-        
-        for(j in 1:3) {
-          for(l in 1:3) {
-            total = total + cs[[1]][i, j, k, l] * dinp[n0, n1, j, l]
+for(ii in 1:length(densities)) {
+  for(n0 in 1:N) {
+    for(n1 in 1:N) {
+      for(i in 1:3) {
+        for(k in 1:3) {
+          total = 0.0
+          
+          for(j in 1:3) {
+            for(l in 1:3) {
+              total = total + cs[[ii]][i, j, k, l] * dinp[ii, n0, n1, j, l]
+            }
           }
+          
+          K[3 * (n0 - 1) + i, 3 * (n1 - 1) + k] = K[3 * (n0 - 1) + i, 3 * (n1 - 1) + k] + total
         }
-        
-        K[3 * (n0 - 1) + i, 3 * (n1 - 1) + k] = total
+        M[3 * (n0 - 1) + i, 3 * (n1 - 1) + i] = M[3 * (n0 - 1) + i, 3 * (n1 - 1) + i] + densities[ii] * inp[ii, n0, n1]
       }
-      M[3 * (n0 - 1) + i, 3 * (n1 - 1) + i] = densities[1] * inp[n0, n1]
     }
   }
 }
 
 r = geigen(K, M, TRUE)
 
-print(r$values[7:14])
+print(r$values[1:25])
 
 {
   xs = seq(0.0, X, length = 20)
@@ -138,3 +144,4 @@ print(r$values[7:14])
 }
 
 # 7.442681e+00  8.283205e+00  8.283205e+00  8.613477e+00  8.750229e+00  8.981048e+00  9.263764e+00 9.934843e+00  9.934843e+00  1.038664e+01  1.090038e+01  1.166401e+01  1.222080e+01  1.235710e+01
+
