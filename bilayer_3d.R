@@ -3,21 +3,34 @@ library(tidyverse)
 library(ggplot2)
 library(geigen)
 
-IN = 8
-JN = 8
-KN = 8
-X = 0.7
-Y = 1.2
-Z = 1.0
-densities = c(1.0, 2.0)
-cm = diag(6)
-cm[1, 2] = 0.1
-cm[2, 1] = 0.1
-cm[1, 3] = 0.1
-cm[3, 1] = 0.1
-cm[2, 3] = 0.1
-cm[3, 2] = 0.1
-B = 0.5
+IN = 10
+JN = 10
+KN = 10
+X = 0.02
+Y = 0.03
+Z = 0.011
+densities = c(8700, 8700)
+buildcm = function(c11, c12, c44) {
+  cm = matrix(0, nrow = 6, ncol = 6)
+  cm[1, 1] = c11
+  cm[2, 2] = cm[1, 1]
+  cm[3, 3] = cm[1, 1]
+  cm[1, 2] = c12
+  cm[2, 1] = cm[1, 2]
+  cm[1, 3] = cm[1, 2]
+  cm[2, 3] = cm[1, 2]
+  cm[3, 1] = cm[1, 2]
+  cm[3, 2] = cm[1, 2]
+  cm[4, 4] = c44
+  cm[5, 5] = cm[4, 4]
+  cm[6, 6] = cm[4, 4]
+  
+  cm
+}
+
+cm1 = buildcm(250, 150, 140)
+cm2 = buildcm(269.231, 115.385, 76.923)
+B = 0.01
 
 Cvoigt = function(cm) {
   C = array(0, c(3, 3, 3, 3))
@@ -46,7 +59,7 @@ Cvoigt = function(cm) {
   C
 }
 
-cs = list(Cvoigt(cm), 3 * Cvoigt(cm))
+cs = list(Cvoigt(cm1), Cvoigt(cm1))
 
 inner = function(i0, i1, j0, j1, k0, k1, a, b) {
   # int_0_X x^i0 * x^i1 dx
@@ -127,8 +140,10 @@ for(ii in 1:length(densities)) {
 
 r = geigen(K, M, TRUE)
 
-print(r$values[1:25])
-
+print(r$values[1:14])
+print(sqrt(r$values[7:14] * 1e9) / (pi * 2))
+# 40623.81 48710.37 52785.86 64962.03 80016.28 85147.94 88924.69 89817.98
+# 38714.62 50746.73 51924.30 63328.94 76872.74 82737.92 87248.11 90207.19
 {
   xs = seq(0.0, X, length = 20)
   y = 0.5

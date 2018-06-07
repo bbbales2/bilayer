@@ -2,10 +2,10 @@ library(tidyverse)
 library(ggplot2)
 library(geigen)
 
-N = 20
+N = 10
 X = 1.0
-densities = c(1.0, 1.0)
-cs = c(1.0, 2.0)
+densities = c(1.0, 2.0)
+cs = c(1.0, 5.0)
 B = 0.2307692
 
 inner = function(i0, i1, a, b) {
@@ -40,6 +40,6 @@ r = geigen(K, M, TRUE)
 print(r$values)
 
 xs = seq(0.0, X, length = 200)
-map(1:N, ~ r$vectors[.,3] * xs^(. - 1)) %>%
+map(1:N, ~ r$vectors[.,2] * xs^(. - 1)) %>%
   Reduce('+', .) %>% plot
 #4.292280e-11 9.870433e+00 3.949167e+01 8.889355e+01 1.581258e+02

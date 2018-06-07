@@ -3,22 +3,35 @@ library(tidyverse)
 library(ggplot2)
 library(geigen)
 
-IN = 5
-JN = 5
-KN = 11
-X = 0.7
-Y = 1.2
-Z = 1.0
+IN = 8
+JN = 8
+KN = 22
+X = 0.02
+Y = 0.03
+Z = 0.011
 zs = seq(0.0, Z, length = KN)
-densities = c(1.0, 2.0)
-cm = diag(6)
-cm[1, 2] = 0.1
-cm[2, 1] = 0.1
-cm[1, 3] = 0.1
-cm[3, 1] = 0.1
-cm[2, 3] = 0.1
-cm[3, 2] = 0.1
-B = 0.5
+densities = c(8700, 8000)
+buildcm = function(c11, c12, c44) {
+  cm = matrix(0, nrow = 6, ncol = 6)
+  cm[1, 1] = c11
+  cm[2, 2] = cm[1, 1]
+  cm[3, 3] = cm[1, 1]
+  cm[1, 2] = c12
+  cm[2, 1] = cm[1, 2]
+  cm[1, 3] = cm[1, 2]
+  cm[2, 3] = cm[1, 2]
+  cm[3, 1] = cm[1, 2]
+  cm[3, 2] = cm[1, 2]
+  cm[4, 4] = c44
+  cm[5, 5] = cm[4, 4]
+  cm[6, 6] = cm[4, 4]
+  
+  cm
+}
+
+cm1 = buildcm(250, 150, 140)
+cm2 = buildcm(269.231, 115.385, 76.923)
+B = 0.01
 m = which.min(abs(B - zs))
 
 Cvoigt = function(cm) {
@@ -48,7 +61,7 @@ Cvoigt = function(cm) {
   C
 }
 
-cs = list(Cvoigt(cm), 3 * Cvoigt(cm))
+cs = list(Cvoigt(cm1), Cvoigt(cm2))
 
 inner = function(i0, i1, j0, j1) {
   # int_0_X x^i0 * x^i1 dx
@@ -172,6 +185,7 @@ K = matrix(0, nrow = 3 * N, ncol = 3 * N)
 M = matrix(0, nrow = 3 * N, ncol = 3 * N)
 for(ii in 1:length(densities)) {
   for(n0 in 1:N) {
+    cat(n0, "\n");
     for(n1 in 1:N) {
       k0 = idxs[[n0]][3]
       k1 = idxs[[n1]][3]
@@ -197,6 +211,7 @@ for(ii in 1:length(densities)) {
 r = geigen(K, M, TRUE)
 
 print(r$values[1:25])
+print(sqrt(r$values[7:14] * 1e9) / (pi * 2))
 # 3.734092e+00  4.729633e+00  4.734347e+00  6.431031e+00  6.615935e+00  8.074131e+00
 # 3.024603e+00  3.202178e+00  3.542420e+00  5.058626e+00  5.895012e+00  6.216565e+00
 # 4.251224e+00  4.271725e+00  5.319324e+00  5.357855e+00  6.569780e+00  7.108487e+00
