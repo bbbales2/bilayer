@@ -5,12 +5,12 @@ library(geigen)
 
 IN = 8
 JN = 8
-KN = 22
+KN = 8
 X = 0.02
 Y = 0.03
 Z = 0.011
 zs = seq(0.0, Z, length = KN)
-densities = c(8700, 8000)
+densities = c(8700, 8700)
 buildcm = function(c11, c12, c44) {
   cm = matrix(0, nrow = 6, ncol = 6)
   cm[1, 1] = c11
@@ -30,7 +30,8 @@ buildcm = function(c11, c12, c44) {
 }
 
 cm1 = buildcm(250, 150, 140)
-cm2 = buildcm(269.231, 115.385, 76.923)
+cm2 = buildcm(250, 150, 140)
+#cm2 = buildcm(269.231, 115.385, 76.923)
 B = 0.01
 m = which.min(abs(B - zs))
 
@@ -234,7 +235,7 @@ print(sqrt(r$values[7:14] * 1e9) / (pi * 2))
     i = idxs[[n]][1]
     j = idxs[[n]][2]
     k = idxs[[n]][3]
-    u = u + outer(xs, zs, function(x, z) { r$vectors[2 * (n - 1) + 1, 1] * (x^i) * (y^j) * (z^k) })
+    u = u + outer(xs, zs, function(x, z) { r$vectors[2 * (n - 1) + 1, 6] * (x^i) * (y^j) * (z^k) })
   }
   levelplot(u)
 }

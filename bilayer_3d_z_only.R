@@ -6,9 +6,9 @@ library(geigen)
 IN = 5
 JN = 5
 KN = 2
-X = 0.02
-Y = 0.03
-Z = 0.00001
+X = 0.05
+Y = 0.05
+Z = 0.0001
 densities = c(8700, 8700)
 buildcm = function(c11, c12, c44) {
   cm = matrix(0, nrow = 6, ncol = 6)
@@ -116,25 +116,30 @@ for(ii in 1:length(densities)) {
   }
 }
 
-K = matrix(0, nrow = 3 * N, ncol = 3 * N)
-M = matrix(0, nrow = 3 * N, ncol = 3 * N)
+#K = matrix(0, nrow = 3 * N, ncol = 3 * N)
+#M = matrix(0, nrow = 3 * N, ncol = 3 * N)
+K = matrix(0, nrow = N, ncol = N)
+M = matrix(0, nrow = N, ncol = N)
 for(ii in 1:length(densities)) {
   for(n0 in 1:N) {
     for(n1 in 1:N) {
-      for(i in 1:3) {
-        for(k in 1:3) {
-          total = 0.0
-
-          for(j in 1:3) {
-            for(l in 1:3) {
-              total = total + cs[[ii]][i, j, k, l] * dinp[ii, n0, n1, j, l]
-            }
-          }
-
-          K[3 * (n0 - 1) + i, 3 * (n1 - 1) + k] = K[3 * (n0 - 1) + i, 3 * (n1 - 1) + k] + total
-        }
-        M[3 * (n0 - 1) + i, 3 * (n1 - 1) + i] = M[3 * (n0 - 1) + i, 3 * (n1 - 1) + i] + densities[ii] * inp[ii, n0, n1]
-      }
+      # for(i in 1:3) {
+      #   for(k in 1:3) {
+      #     total = 0.0
+      #     
+      #     for(j in 1:3) {
+      #       for(l in 1:3) {
+      #         total = total + cs[[ii]][i, j, k, l] * dinp[ii, n0, n1, j, l]
+      #       }
+      #     }
+      #     
+      #     K[3 * (n0 - 1) + i, 3 * (n1 - 1) + k] = K[3 * (n0 - 1) + i, 3 * (n1 - 1) + k] + total
+      #   }
+      #   M[3 * (n0 - 1) + i, 3 * (n1 - 1) + i] = M[3 * (n0 - 1) + i, 3 * (n1 - 1) + i] + densities[ii] * inp[ii, n0, n1]
+      # }
+      
+      K[n0, n1] = K[n0, n1] + sum(cs[[ii]][3,, 3, ] * dinp[ii, n0, n1,,])
+      M[n0, n1] = M[n0, n1] + densities[ii] * inp[ii, n0, n1]
     }
   }
 }
@@ -142,7 +147,7 @@ for(ii in 1:length(densities)) {
 r = geigen(K, M, TRUE)
 
 print(r$values[1:14])
-print(1e-3 * sqrt(r$values[7:14] * 1e9) / (pi * 2))
+print(1e-3 * sqrt(r$values[2:14] * 1e9) / (pi * 2))
 # 40623.81 48710.37 52785.86 64962.03 80016.28 85147.94 88924.69 89817.98
 # 38714.62 50746.73 51924.30 63328.94 76872.74 82737.92 87248.11 90207.19
 {
@@ -150,11 +155,11 @@ print(1e-3 * sqrt(r$values[7:14] * 1e9) / (pi * 2))
   ys = seq(0.0, Y, length = 20)
   z = 0.5
   u = matrix(0, nrow = length(xs), ncol = length(ys))
-  for(n in 1:N) {
+  for(n in 1:10) {
     i = idxs[[n]][1]
     j = idxs[[n]][2]
     k = idxs[[n]][3]
-    u = u + outer(xs, ys, function(x, y) { r$vectors[3 * (n - 1) + 3, 7] * (x^i) * (y^j) * (z^k) })
+    u = u + outer(xs, ys, function(x, y) { r$vectors[3 * (n - 1) + 2, 1] * (x^i) * (y^j) * (z^k) })
   }
   levelplot(u)
 }
