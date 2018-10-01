@@ -3,13 +3,21 @@ library(tidyverse)
 library(ggplot2)
 library(geigen)
 
-IN = 8
-JN = 8
-KN = 8
-X = 0.02
-Y = 0.03
-Z = 0.011
+IN = 6
+JN = 6
+KN = 7
+X = 0.07
+Y = 0.05
+Z = 0.018
+B = 0.014
 zs = seq(0.0, Z, length = KN)
+i = 1
+while(zs[i] < B) {
+  i = i + 1
+}
+m = i
+zs = c(zs[1:(i - 1)], B, zs[i:KN])
+KN = length(zs)
 densities = c(8700, 8700)
 buildcm = function(c11, c12, c44) {
   cm = matrix(0, nrow = 6, ncol = 6)
@@ -28,13 +36,6 @@ buildcm = function(c11, c12, c44) {
   
   cm
 }
-
-cm1 = buildcm(250, 150, 140)
-cm2 = buildcm(250, 150, 140)
-#cm2 = buildcm(269.231, 115.385, 76.923)
-B = 0.01
-m = which.min(abs(B - zs))
-
 Cvoigt = function(cm) {
   C = array(0, c(3, 3, 3, 3))
   
@@ -62,6 +63,8 @@ Cvoigt = function(cm) {
   C
 }
 
+cm1 = buildcm(250, 150, 140)
+cm2 = buildcm(150, 100, 40)
 cs = list(Cvoigt(cm1), Cvoigt(cm2))
 
 inner = function(i0, i1, j0, j1) {
@@ -186,7 +189,7 @@ K = matrix(0, nrow = 3 * N, ncol = 3 * N)
 M = matrix(0, nrow = 3 * N, ncol = 3 * N)
 for(ii in 1:length(densities)) {
   for(n0 in 1:N) {
-    cat(n0, "\n");
+    #cat(n0, "\n");
     for(n1 in 1:N) {
       k0 = idxs[[n0]][3]
       k1 = idxs[[n1]][3]
@@ -226,17 +229,17 @@ print(sqrt(r$values[7:14] * 1e9) / (pi * 2))
 # 4.850074e+00  5.304551e+00  5.724816e+00  7.078923e+00  8.783755e+00  9.096595e+00
 
 
-{
-  xs = seq(0.0, X, length = 20)
-  y = 0.5
-  zs = seq(0.0, Z, length = 20)
-  u = matrix(0, nrow = length(xs), ncol = length(zs))
-  for(n in 1:N) {
-    i = idxs[[n]][1]
-    j = idxs[[n]][2]
-    k = idxs[[n]][3]
-    u = u + outer(xs, zs, function(x, z) { r$vectors[2 * (n - 1) + 1, 6] * (x^i) * (y^j) * (z^k) })
-  }
-  levelplot(u)
-}
+# {
+#   xs = seq(0.0, X, length = 20)
+#   y = 0.5
+#   zs = seq(0.0, Z, length = 20)
+#   u = matrix(0, nrow = length(xs), ncol = length(zs))
+#   for(n in 1:N) {
+#     i = idxs[[n]][1]
+#     j = idxs[[n]][2]
+#     k = idxs[[n]][3]
+#     u = u + outer(xs, zs, function(x, z) { r$vectors[2 * (n - 1) + 1, 6] * (x^i) * (y^j) * (z^k) })
+#   }
+#   levelplot(u)
+# }
 

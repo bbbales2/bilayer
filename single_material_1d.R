@@ -37,6 +37,6 @@ for(i in 1:N) {
 r = geigen(K, M, TRUE)
 
 xs = seq(0.0, X, length = 200)
-map(1:N, ~ r$vectors[.,5] * xs^(. - 1)) %>%
+map(1:N, ~ r$vectors[.,2] * xs^(. - 1)) %>%
   Reduce('+', .) %>% plot
 

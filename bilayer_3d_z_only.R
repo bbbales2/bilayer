@@ -3,11 +3,11 @@ library(tidyverse)
 library(ggplot2)
 library(geigen)
 
-IN = 5
-JN = 5
-KN = 2
-X = 0.05
-Y = 0.05
+IN = 10
+JN = 10
+KN = 5
+X = 0.02
+Y = 0.03
 Z = 0.0001
 densities = c(8700, 8700)
 buildcm = function(c11, c12, c44) {

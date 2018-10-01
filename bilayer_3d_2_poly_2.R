@@ -10,6 +10,10 @@ KN = 2
 X = 0.05
 Y = 0.07
 Z = 0.018
+B = Z# / 2.0
+cm1 = buildcm(250, 150, 140)
+cm2 = buildcm(250, 150, 140)
+
 densities = c(8700, 8700)
 buildcm = function(c11, c12, c44) {
   cm = matrix(0, nrow = 6, ncol = 6)
@@ -28,12 +32,6 @@ buildcm = function(c11, c12, c44) {
   
   cm
 }
-
-cm1 = buildcm(250, 150, 140)
-cm2 = buildcm(250, 150, 140)
-#cm2 = buildcm(269.231, 115.385, 76.923)
-B = Z / 2.0
-
 Cvoigt = function(cm) {
   C = array(0, c(3, 3, 3, 3))
   
@@ -61,7 +59,7 @@ Cvoigt = function(cm) {
   C
 }
 
-cs = list(Cvoigt(cm1), Cvoigt(cm1))
+cs = list(Cvoigt(cm1), Cvoigt(cm2))
 
 inner = function(i0, i1, j0, j1, k0, k1, a, b) {
   # int_0_X x^i0 * x^i1 dx
@@ -117,24 +115,38 @@ for(ii in 1:length(densities)) {
   }
 }
 
-K = matrix(0, nrow = 3 * N, ncol = 3 * N)
-M = matrix(0, nrow = 3 * N, ncol = 3 * N)
-for(ii in 1:length(densities)) {
-  for(n0 in 1:N) {
-    for(n1 in 1:N) {
-      for(i in 1:3) {
-        for(k in 1:3) {
-          total = 0.0
+idx = function(ii, n, i) {
+  (ii - 1) * 3 * N + (n - 1) * 3 + i
+}
 
-          for(j in 1:3) {
-            for(l in 1:3) {
-              total = total + cs[[ii]][i, j, k, l] * dinp[ii, n0, n1, j, l]
+# total = 0.0
+# 
+# for(j in 1:3) {
+#   for(l in 1:3) {
+#     total = total + cs[[ii]][i, j, k, l] * dinp[ii, n0, n1, j, l]
+#   }
+# }
+
+K = matrix(0, nrow = 3 * 2 * N, ncol = 3 * 2 * N)
+M = matrix(0, nrow = 3 * 2 * N, ncol = 3 * 2 * N)
+for(ii0 in 1:length(densities)) {
+  for(ii1 in 1:length(densities)) {
+    for(n0 in 1:N) {
+      for(n1 in 1:N) {
+        for(i in 1:3) {
+          for(k in 1:3) {
+            total = 0.0
+
+            if(ii0 == ii1) {
+              total = sum(cs[[ii0]][i,, k,] * dinp[ii0, n0, n1,,])
+            } else {
+              total = 
             }
-          }
 
-          K[3 * (n0 - 1) + i, 3 * (n1 - 1) + k] = K[3 * (n0 - 1) + i, 3 * (n1 - 1) + k] + total
+            K[idx(ii0, n0, i), idx(ii1, n1, k)] = K[idx(ii0, n0, i), idx(ii1, n1, k)] + total
+          }
+          M[idx(ii0, n0, i), idx(ii1, n1, k)] = M[idx(ii0, n0, i), idx(ii1, n1, k)] + densities[ii] * inp[ii, n0, n1]
         }
-        M[3 * (n0 - 1) + i, 3 * (n1 - 1) + i] = M[3 * (n0 - 1) + i, 3 * (n1 - 1) + i] + densities[ii] * inp[ii, n0, n1]
       }
     }
   }

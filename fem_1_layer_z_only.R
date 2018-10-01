@@ -3,12 +3,12 @@ library(tidyverse)
 library(ggplot2)
 library(geigen)
 
-IN = 10
-JN = 10
-KN = 5
-X = 0.05
-Y = 0.05
-Z = 0.000001
+IN = 20
+JN = 20
+KN = 2
+X = 0.03
+Y = 0.02
+Z = 0.0001
 dx = X / (IN - 1)
 dy = Y / (JN - 1)
 dz = Z / (KN - 1)
@@ -196,6 +196,9 @@ for(n in 1:length(idxs)) {
 
 isSymmetric(K)
 r = geigen(K, M, TRUE)
+
+write.table(M, "m.csv", sep = ",", row.names = FALSE, col.names = FALSE)
+write.table(K, "k.csv", sep = ",", row.names = FALSE, col.names = FALSE)
 
 print(r$values[1:25])
 print(1e-3 * sqrt(r$values[7:14] * 1e9) / (pi * 2))
