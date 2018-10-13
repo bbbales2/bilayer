@@ -3,14 +3,30 @@ library(tidyverse)
 library(ggplot2)
 library(geigen)
 library(Ryacas)
+library(RcppEigen)
+library(Rcpp11)
+library(Rcpp)
 
-IN = 7
-JN = 6
-KN = 5
+IN = 6
+JN = 5
+KN = 6
 X = 0.07
 Y = 0.05
 Z = 0.018
 B = 0.014
+# dz = Z / (KN - 2)
+# zs = seq(0.0, Z, length = KN)
+# for(i in 2:KN) {
+#   if(zs[i - 1] + dz > B && zs[i - 1] < B) {
+#     zs[i] = B
+#   } else if(zs[i - 1] + dz > Z) {
+#     zs[i] = Z
+#   } else {
+#     zs[i] = zs[i - 1] + dz
+#   }
+# }
+#0.000 0.003 0.006 0.009 0.012 0.014 0.017 0.018
+#0.000 0.003 0.006 0.009 0.012 0.014 0.015 0.018
 zs = seq(0.0, Z, length = KN)
 i = 1
 while(zs[i] < B) {
@@ -19,7 +35,18 @@ while(zs[i] < B) {
 zint = i
 zs = c(zs[1:(i - 1)], B, zs[i:KN])
 KN = length(zs)
+
+sourceCpp("rus_dev.cpp")
+tmp = build_dKdci_M(X, Y, zs, IN, JN, zint, densities)
+M = calc_M(IN, JN, KN)
+
+#dinpc = array(tmp[1 : (2 * M * M * 3 * 3)], c(2, M, M, 3, 3))
+#inpc = array(tmp[(2 * M * M * 3 * 3 + 1) : (2 * M * M * 3 * 3 + 2 * M * M)], c(2, M, M))
+dKhatdcijii = array(tmp[1 : (3 * M * 3 * M * 6 * 6 * 2)], c(3 * M, 3 * M, 6, 6, 2))
+Wii = array(tmp[(3 * M * 3 * M * 6 * 6 * 2 + 1) : (3 * M * 3 * M * 6 * 6 * 2 + 3 * M * 3 * M * 2)], c(3 * M, 3 * M, 2))
+
 densities = c(8700, 8700)
+
 buildcm = function(c11, c12, c44) {
   cm = matrix(0, nrow = 6, ncol = 6)
   cm[1, 1] = c11
@@ -67,6 +94,7 @@ Cvoigt = function(cm) {
 cm2 = buildcm(250, 150, 140)
 cm1 = buildcm(150, 100, 40)
 
+cms = list(cm1, cm2)
 cs = list(Cvoigt(cm1), Cvoigt(cm2))
 
 x = Sym("x")
@@ -121,7 +149,7 @@ for(i in 0:IN) {
 }
 
 N = length(ntoijk)
-M = nlength %>% unlist %>% sum
+M = m - 1
 
 dinp = array(0, c(2, M, M, 3, 3))
 inp = array(0, c(2, M, M))
@@ -135,7 +163,7 @@ for(ii in 1:length(densities)) {
       i1 = ntoijk[[n1]][1]
       j1 = ntoijk[[n1]][2]
       k1 = ntoijk[[n1]][3]
-  
+      
       if(ii == 1) {
         if(k0 >= zint) {
           next
@@ -145,46 +173,48 @@ for(ii in 1:length(densities)) {
           next
         }
       }
-  
+      
       if(k0 != k1) {
         next
       }
-  
+      
       if(k0 == KN) {
         next
       }
-  
+      
       dz = (zs[k0 + 1] - zs[k0])
       r0 = ntom[[n0]]:(ntom[[n0]] + nlength[[n0]])
       r1 = ntom[[n1]]:(ntom[[n1]] + nlength[[n1]])
-  
+      
+      #print(c(k0, KN, n0, n1, r0, r1))
+      
       tmp = i0 * i1 * inner(i0 - 1, i1 - 1, j0, j1) # f0f1
       dinp[ii, r0, r1, 1, 1] = dinp[ii, r0, r1, 1, 1] + tmp * bp[, 1,, 1] * dz
-  
+      
       tmp = i0 * j1 * inner(i0 - 1, i1, j0, j1 - 1) # f0f1
       dinp[ii, r0, r1, 1, 2] = dinp[ii, r0, r1, 1, 2] + tmp * bp[, 1,, 1] * dz
-  
+      
       tmp = i0 * inner(i0 - 1, i1, j0, j1) # f0df1
       dinp[ii, r0, r1, 1, 3] = dinp[ii, r0, r1, 1, 3] + tmp * bp[, 1,, 2]
-  
+      
       tmp = j0 * i1 * inner(i0, i1 - 1, j0 - 1, j1) # f0f1
       dinp[ii, r0, r1, 2, 1] = dinp[ii, r0, r1, 2, 1] + tmp * bp[, 1,, 1] * dz
-  
+      
       tmp = j0 * j1 * inner(i0, i1, j0 - 1, j1 - 1) # f0f1
       dinp[ii, r0, r1, 2, 2] = dinp[ii, r0, r1, 2, 2] + tmp * bp[, 1,, 1] * dz
-  
+      
       tmp = j0 * inner(i0, i1, j0 - 1, j1) # f0df1
       dinp[ii, r0, r1, 2, 3] = dinp[ii, r0, r1, 2, 3] + tmp * bp[, 1,, 2]
-  
+      
       tmp = i1 * inner(i0, i1 - 1, j0, j1) # df0f1
       dinp[ii, r0, r1, 3, 1] = dinp[ii, r0, r1, 3, 1] + tmp * bp[, 2,, 1]
-  
+      
       tmp = j1 * inner(i0, i1, j0, j1 - 1) # df0f1
       dinp[ii, r0, r1, 3, 2] = dinp[ii, r0, r1, 3, 2] + tmp * bp[, 2,, 1]
-  
+      
       tmp = inner(i0, i1, j0, j1) # df0df1
       dinp[ii, r0, r1, 3, 3] = dinp[ii, r0, r1, 3, 3] + tmp * bp[, 2,, 2] / dz
-  
+      
       tmp = inner(i0, i1, j0, j1)
       inp[ii, r0, r1] = inp[ii, r0, r1] + tmp * bp[, 1,, 1] * dz
     }
@@ -196,22 +226,16 @@ W = matrix(0, nrow = 3 * M, ncol = 3 * M)
 for(ii in 1:length(densities)) {
   for(m0 in 1:M) {
     for(m1 in 1:M) {
-      k0 = ntoijk[[mton[[m0]]]][[3]]
-      k1 = ntoijk[[mton[[m0]]]][[3]]
+      #k0 = ntoijk[[mton[[m0]]]][[3]]
+      #k1 = ntoijk[[mton[[m0]]]][[3]]
       
-      if(k0 != k1) {
-        next
-      }
+      #if(k0 != k1) {
+      #  next
+      #}
       
       for(i in 1:3) {
         for(k in 1:3) {
-          total = 0.0
-          
-          for(j in 1:3) {
-            for(l in 1:3) {
-              total = total + cs[[ii]][i, j, k, l] * dinp[ii, m0, m1, j, l]
-            }
-          }
+          total = sum(cs[[ii]][i,, k,] * dinp[ii, m0, m1,,])
           
           K[3 * (m0 - 1) + i, 3 * (m1 - 1) + k] = K[3 * (m0 - 1) + i, 3 * (m1 - 1) + k] + total
         }
@@ -220,10 +244,42 @@ for(ii in 1:length(densities)) {
     }
   }
 }
+system.time(geigen(K, W, TRUE))
 
-r = geigen(K, W, TRUE)
+# Wc = matrix(0, 3 * M, 3 * M)
+# for(ii in 1:length(densities)) {
+#   Wc = Wc + densities[[ii]] * Wii[,, ii]
+# }
+# U = chol(Wc)
+# dKc = array(0, dim(dKdcijii))
+# for(ii in 1:length(densities)) {
+#   for(i in 1:6) {
+#     for(j in 1:6) {
+#       P = solve(t(U), t(solve(t(U), t(dKdcijii[,, i, j, ii]))))
+#       dKc[,,i, j, ii] = (P + t(P)) / 2.0
+#     }
+#   }
+# }
+Kc = matrix(0, 3 * M, 3 * M)
+for(ii in 1:length(densities)) {
+  for(i in 1:6) {
+    for(j in 1:6) {
+      Kc = Kc + cms[[ii]][i, j] * dKhatdcijii[,,i, j, ii]
+    }
+  }
+}
+
+system.time(rev(eigen(Kc, TRUE)$values)[1:25])
+
+system.time(calc_evals(Kc)[1:25])
 
 print(r$values[1:25])
+print(rc)
 print(sqrt(r$values[7:14] * 1e9) / (pi * 2))
-#10320.35 10979.92 17566.88 19195.25 20995.62 21233.80 22062.97 26182.59
-#10320.24 10979.39 17566.84 19194.90 20994.12 21233.76 22061.87 26181.41
+
+#10320.19 10979.00 17566.82 19194.71 20993.04 21233.74 22061.11 26180.68
+#10324.83 10997.64 17569.12 19219.00 21045.94 21236.61 22138.22 26324.39
+#11454.55 13885.22 21559.08 21846.67 25507.50 26803.93 27196.34 32373.27
+#11414.40 13781.38 21451.18 21753.09 25504.56 26562.91 26832.72 31874.41
+#11408.66 13747.66 21450.40 21721.79 25502.83 26426.39 26725.75 31712.02
+
