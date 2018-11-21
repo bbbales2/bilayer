@@ -36,6 +36,8 @@ zint = i
 zs = c(zs[1:(i - 1)], B, zs[i:KN])
 KN = length(zs)
 
+densities = c(8700, 8700)
+
 sourceCpp("rus_dev.cpp")
 tmp = build_dKdci_M(X, Y, zs, IN, JN, zint, densities)
 M = calc_M(IN, JN, KN)
@@ -44,8 +46,6 @@ M = calc_M(IN, JN, KN)
 #inpc = array(tmp[(2 * M * M * 3 * 3 + 1) : (2 * M * M * 3 * 3 + 2 * M * M)], c(2, M, M))
 dKhatdcijii = array(tmp[1 : (3 * M * 3 * M * 6 * 6 * 2)], c(3 * M, 3 * M, 6, 6, 2))
 Wii = array(tmp[(3 * M * 3 * M * 6 * 6 * 2 + 1) : (3 * M * 3 * M * 6 * 6 * 2 + 3 * M * 3 * M * 2)], c(3 * M, 3 * M, 2))
-
-densities = c(8700, 8700)
 
 buildcm = function(c11, c12, c44) {
   cm = matrix(0, nrow = 6, ncol = 6)

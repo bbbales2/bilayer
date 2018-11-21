@@ -277,6 +277,12 @@ NumericVector build_dKdci_M(double X, double Y, NumericVector Z, int IN, int JN,
     }
   }
   
+  double total = 0.0;
+  for(int i = 0; i < dKhatdcij.size(); i++) {
+    total += std::abs(dKhatdcij(i));
+  }
+  std::cout << "total: " << total << std::endl;
+  
   NumericVector out(dKhatdcij.size());
   std::copy(dKhatdcij.data(), dKhatdcij.data() + dKhatdcij.size(), out.begin());
   return out;

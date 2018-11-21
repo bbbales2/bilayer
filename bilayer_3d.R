@@ -1,8 +1,8 @@
-library(lattice)
-library(cowplot)
 library(tidyverse)
 library(ggplot2)
 library(geigen)
+
+source("fwd.dat")
 
 IN = 10
 JN = 10
