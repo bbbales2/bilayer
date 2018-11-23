@@ -1,5 +1,6 @@
 #!/usr/bin/env Rscript
 library(argparse)
+library(rgl)
 library(tidyverse)
 library(ggplot2)
 library(rstan)
@@ -7,9 +8,10 @@ library(geigen)
 
 parser = ArgumentParser()
 
-parser$add_argument("--data", default="", help = "File to be sourced that has all config stuff in it (or an output file if --refine enabled)")
+parser$add_argument("--config", default="", help = "File to be sourced that has all config stuff in it (or an output file if --refine enabled)")
 parser$add_argument("--output", default="", help = "Place to store the output plots")
-parser$add_argument("--noscale", action="store_true", default=FALSE, help = "Do not scale plot size to geometry")
+parser$add_argument("--scale", default = 4.0, type = "double", help = "Scale eigen modes")
+parser$add_argument("--mode", default = 1, type = "integer", help = "Mode to plot")
 
 args = parser$parse_args()
 
@@ -29,6 +31,10 @@ if(length(not_defined) > 0) {
 IN = dat$P
 JN = dat$P
 KN = dat$P
+
+X = dat$X
+Y = dat$Y
+Z = dat$Z
 
 cm = dat$c
 
@@ -136,8 +142,7 @@ r = geigen(K, M, TRUE)
 print(1e-3 * sqrt(r$values[7:16] * 1e9) / (pi * 2))
 
 evals = r$values * (r$values > 0)
-#for (w in 1:30) {
-w = 1
+w = args$mode + 6
 R = 21
 #w = 15
 d = 1
@@ -158,37 +163,9 @@ approx = function(N, d, w, x, y, z) {
 tmp = expand.grid(x = xs, y = ys, z = zs) %>% as.tibble %>% mutate(ux = approx(N, 1, w, x, y, z),
                                                                    uy = approx(N, 2, w, x, y, z),
                                                                    uz = approx(N, 3, w, x, y, z)) %>%
-  mutate(ux = x + (X / 4.0) * ux / max(abs(ux)),
-         uy = y + (Y / 4.0) * uy / max(abs(uy)),
-         uz = z + (Z / 4.0) * uz / max(abs(uz)))
+  mutate(ux = x + (max(X, Y, Z) / args$scale) * ux / max(abs(ux)),
+         uy = y + (max(X, Y, Z) / args$scale) * uy / max(abs(uy)),
+         uz = z + (max(X, Y, Z) / args$scale) * uz / max(abs(uz)))
 
-points3D(tmp$ux, tmp$uy, tmp$uz, colvar = NULL, pch = '.')
-plotdev(phi = 0, theta = 0)
-points3D(tmp$ux, tmp$uy, tmp$uz, colvar = NULL, pch = '.')
-plotdev(phi = 0, theta = 90)
-points3D(tmp$ux, tmp$uy, tmp$uz, colvar = NULL, pch = '.')
-plotdev(phi = -90, theta = 0)
-points3D(tmp$ux, tmp$uy, tmp$uz, colvar = NULL, pch = '.')
-plotdev(phi = -90, theta = 0)
-par(mar =rep(1.0, 4))
-
-dtostring = c("x", "y", "z")
-
-#tplot = 
-  bind_rows(expand.grid(c1 = ys, c2 = zs) %>% as.tibble %>% mutate(u = approx(N, d, w, xs[1], c1, c2), direction = 'along x\nc1 = y\nc2 = z', position = 0.0), 
-          expand.grid(c1 = ys, c2 = zs) %>% as.tibble %>% mutate(u = approx(N, d, w, xs[(R - 1) / 2], c1, c2), direction = 'along x\nc1 = y\nc2 = z', position = 0.5),
-          expand.grid(c1 = ys, c2 = zs) %>% as.tibble %>% mutate(u = approx(N, d, w, xs[R], c1, c2), direction = 'along x\nc1 = y\nc2 = z', position = 1.0),
-          expand.grid(c1 = xs, c2 = zs) %>% as.tibble %>% mutate(u = approx(N, d, w, c1, ys[1], c2), direction = 'along y\nc1 = x\nc2 = z', position = 0.0), 
-          expand.grid(c1 = xs, c2 = zs) %>% as.tibble %>% mutate(u = approx(N, d, w, c1, ys[(R - 1) / 2], c2), direction = 'along y\nc1 = x\nc2 = z', position = 0.5),
-          expand.grid(c1 = xs, c2 = zs) %>% as.tibble %>% mutate(u = approx(N, d, w, c1, ys[R], c2), direction = 'along y\nc1 = x\nc2 = z', position = 1.0),
-          expand.grid(c1 = xs, c2 = ys) %>% as.tibble %>% mutate(u = approx(N, d, w, c1, c2, zs[1]), direction = 'along z\nc1 = x\nc2 = y', position = 0.0), 
-          expand.grid(c1 = xs, c2 = ys) %>% as.tibble %>% mutate(u = approx(N, d, w, c1, c2, zs[(R - 1) / 2]), direction = 'along z\nc1 = x\nc2 = y', position = 0.5),
-          expand.grid(c1 = xs, c2 = ys) %>% as.tibble %>% mutate(u = approx(N, d, w, c1, c2, zs[R]), direction = 'along z\nc1 = x\nc2 = y', position = 1.0)) %>%
-  ggplot() +
-  geom_raster(aes(c1, c2, fill = u)) +
-  scale_fill_gradient2(low = "#0000FF", high = "#FF0000", mid = "white", midpoint = 0.0) +
-  facet_grid(direction ~ position, space = "free", scales = "free") +
-  ggtitle(sprintf("%s displacement, mode %d: %.3fKhz", dtostring[d], w - 6, sqrt(evals * 1e9) / (1e3 * pi * 2)))
-
-ggsave(filename = sprintf("ux_mode_%03d.png", w - 6), width = 10, height = 8, plot = tplot)
-#}
+plot3d(tmp$ux, tmp$uy, tmp$uz, aspect = c(X, Y, Z))
+Sys.sleep(1000000.0)
