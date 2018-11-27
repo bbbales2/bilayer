@@ -1,26 +1,15 @@
-#!/usr/bin/env Rscript
+library(Rvcg)
 library(argparse)
+options(rgl.useNULL = TRUE)
+options(rgl.printRglwidget = TRUE)
 library(rgl)
 library(tidyverse)
 library(ggplot2)
 library(rstan)
 library(geigen)
 
-parser = ArgumentParser()
-
-parser$add_argument("--config", default="", help = "File to be sourced that has all config stuff in it (or an output file if --refine enabled)")
-parser$add_argument("--output", default="", help = "Place to store the output plots")
-parser$add_argument("--scale", default = 4.0, type = "double", help = "Scale eigen modes")
-parser$add_argument("--mode", default = 1, type = "integer", help = "Mode to plot")
-
-args = parser$parse_args()
-
-if(length(args$config) == 0) {
-  print("No configuration file provided")
-  quit()
-}
-
 dat = read_rdump("fwd.dat")
+scale = 10.0
 
 not_defined = setdiff(c("P", "N", "X", "Y", "Z", "density", "c"), names(dat))
 if(length(not_defined) > 0) {
@@ -141,31 +130,51 @@ for(n0 in 1:N) {
 r = geigen(K, M, TRUE)
 print(1e-3 * sqrt(r$values[7:16] * 1e9) / (pi * 2))
 
-evals = r$values * (r$values > 0)
-w = args$mode + 6
-R = 21
-#w = 15
-d = 1
-xs = seq(0.0, X, length = R)
-ys = seq(0.0, Y, length = R)
-zs = seq(0.0, Z, length = R)
+frequencies = (1e-3 * sqrt(r$values * (r$values > 0) * 1e9) / (pi * 2))[7:26]
+points = list()
+clear3d()
 
-approx = function(N, d, w, x, y, z) {
-  inner = function(n) {
-    i = idxs[[n]][1]
-    j = idxs[[n]][2]
-    k = idxs[[n]][3]
-    r$vectors[3 * (n - 1) + d, w] * (x^i) * (y^j) * (z^k)
+for(mode in 1:20) {
+  w = mode + 6
+  R = 21
+  d = 1
+  xs = seq(0.0, X, length = R * X / min(X, Y, Z))
+  ys = seq(0.0, Y, length = R * Y / min(X, Y, Z))
+  zs = seq(0.0, Z, length = R * Z / min(X, Y, Z))
+  
+  approx = function(N, d, w, x, y, z) {
+    inner = function(n) {
+      i = idxs[[n]][1]
+      j = idxs[[n]][2]
+      k = idxs[[n]][3]
+      r$vectors[3 * (n - 1) + d, w] * (x^i) * (y^j) * (z^k)
+    }
+    sapply(1:N, inner) %>% rowSums
   }
-  sapply(1:N, inner) %>% rowSums
+  
+  tmp = bind_rows(expand.grid(x = xs[1], y = ys, z = zs) %>% as.tibble,
+                  expand.grid(x = xs[length(xs)], y = ys, z = zs) %>% as.tibble,
+                  expand.grid(x = xs, y = ys[1], z = zs) %>% as.tibble,
+                  expand.grid(x = xs, y = ys[length(ys)], z = zs) %>% as.tibble,
+                  expand.grid(x = xs, y = ys, z = zs[1]) %>% as.tibble,
+                  expand.grid(x = xs, y = ys, z = zs[length(zs)]) %>% as.tibble) %>%
+    mutate(ux = approx(N, 1, w, x, y, z),
+           uy = approx(N, 2, w, x, y, z),
+           uz = approx(N, 3, w, x, y, z)) %>%
+    mutate(ux = x + (max(X, Y, Z) / scale) * ux / max(abs(ux), abs(uy), abs(uz)),
+           uy = y + (max(X, Y, Z) / scale) * uy / max(abs(ux), abs(uy), abs(uz)),
+           uz = z + (max(X, Y, Z) / scale) * uz / max(abs(ux), abs(uy), abs(uz)))
+  
+  mesh = vcgBallPivoting(cbind(tmp$ux, tmp$uy, tmp$uz), min(X, Y, Z) / 10.0)
+  
+  points[[mode]] = shade3d(mesh, col = "grey", specular = "black", aspect = c(X, Y, Z))
+  
+  print(paste0("Mode ", mode, ", ", sprintf("%0.3fKhz", frequencies[mode]), " (of 20)"))
 }
 
-tmp = expand.grid(x = xs, y = ys, z = zs) %>% as.tibble %>% mutate(ux = approx(N, 1, w, x, y, z),
-                                                                   uy = approx(N, 2, w, x, y, z),
-                                                                   uz = approx(N, 3, w, x, y, z)) %>%
-  mutate(ux = x + (max(X, Y, Z) / args$scale) * ux / max(abs(ux)),
-         uy = y + (max(X, Y, Z) / args$scale) * uy / max(abs(uy)),
-         uz = z + (max(X, Y, Z) / args$scale) * uz / max(abs(uz)))
+aspect3d(X, Y, Z)
+axesid = decorate3d()
 
-plot3d(tmp$ux, tmp$uy, tmp$uz, aspect = c(X, Y, Z))
-Sys.sleep(1000000.0)
+rglwidget() %>%
+  playwidget(start = 0, stop = length(points) - 1, interval = 1,
+             subsetControl(value = 1, subsets = points))
