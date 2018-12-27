@@ -1,24 +1,15 @@
-#!/usr/bin/env Rscript
+library(Rvcg)
 library(argparse)
+options(rgl.useNULL = TRUE)
+options(rgl.printRglwidget = TRUE)
+library(rgl)
 library(tidyverse)
 library(ggplot2)
 library(rstan)
 library(geigen)
 
-parser = ArgumentParser()
-
-parser$add_argument("--data", default="", help = "File to be sourced that has all config stuff in it (or an output file if --refine enabled)")
-parser$add_argument("--output", default="", help = "Place to store the output plots")
-parser$add_argument("--noscale", action="store_true", default=FALSE, help = "Do not scale plot size to geometry")
-
-args = parser$parse_args()
-
-if(length(args$config) == 0) {
-  print("No configuration file provided")
-  quit()
-}
-
 dat = read_rdump("fwd.dat")
+scale = 10.0
 
 not_defined = setdiff(c("P", "N", "X", "Y", "Z", "density", "c"), names(dat))
 if(length(not_defined) > 0) {
@@ -29,6 +20,10 @@ if(length(not_defined) > 0) {
 IN = dat$P
 JN = dat$P
 KN = dat$P
+
+X = dat$X
+Y = dat$Y
+Z = dat$Z
 
 cm = dat$c
 
@@ -135,60 +130,51 @@ for(n0 in 1:N) {
 r = geigen(K, M, TRUE)
 print(1e-3 * sqrt(r$values[7:16] * 1e9) / (pi * 2))
 
-evals = r$values * (r$values > 0)
-#for (w in 1:30) {
-w = 1
-R = 21
-#w = 15
-d = 1
-xs = seq(0.0, X, length = R)
-ys = seq(0.0, Y, length = R)
-zs = seq(0.0, Z, length = R)
+frequencies = (1e-3 * sqrt(r$values * (r$values > 0) * 1e9) / (pi * 2))[7:26]
+points = list()
+clear3d()
 
-approx = function(N, d, w, x, y, z) {
-  inner = function(n) {
-    i = idxs[[n]][1]
-    j = idxs[[n]][2]
-    k = idxs[[n]][3]
-    r$vectors[3 * (n - 1) + d, w] * (x^i) * (y^j) * (z^k)
+for(mode in 1:20) {
+  w = mode + 6
+  R = 21
+  d = 1
+  xs = seq(0.0, X, length = R * X / min(X, Y, Z))
+  ys = seq(0.0, Y, length = R * Y / min(X, Y, Z))
+  zs = seq(0.0, Z, length = R * Z / min(X, Y, Z))
+  
+  approx = function(N, d, w, x, y, z) {
+    inner = function(n) {
+      i = idxs[[n]][1]
+      j = idxs[[n]][2]
+      k = idxs[[n]][3]
+      r$vectors[3 * (n - 1) + d, w] * (x^i) * (y^j) * (z^k)
+    }
+    sapply(1:N, inner) %>% rowSums
   }
-  sapply(1:N, inner) %>% rowSums
+  
+  tmp = bind_rows(expand.grid(x = xs[1], y = ys, z = zs) %>% as.tibble,
+                  expand.grid(x = xs[length(xs)], y = ys, z = zs) %>% as.tibble,
+                  expand.grid(x = xs, y = ys[1], z = zs) %>% as.tibble,
+                  expand.grid(x = xs, y = ys[length(ys)], z = zs) %>% as.tibble,
+                  expand.grid(x = xs, y = ys, z = zs[1]) %>% as.tibble,
+                  expand.grid(x = xs, y = ys, z = zs[length(zs)]) %>% as.tibble) %>%
+    mutate(ux = approx(N, 1, w, x, y, z),
+           uy = approx(N, 2, w, x, y, z),
+           uz = approx(N, 3, w, x, y, z)) %>%
+    mutate(ux = x + (max(X, Y, Z) / scale) * ux / max(abs(ux), abs(uy), abs(uz)),
+           uy = y + (max(X, Y, Z) / scale) * uy / max(abs(ux), abs(uy), abs(uz)),
+           uz = z + (max(X, Y, Z) / scale) * uz / max(abs(ux), abs(uy), abs(uz)))
+  
+  mesh = vcgBallPivoting(cbind(tmp$ux, tmp$uy, tmp$uz), min(X, Y, Z) / 10.0)
+  
+  points[[mode]] = shade3d(mesh, col = "grey", specular = "black", aspect = c(X, Y, Z))
+  
+  print(paste0("Mode ", mode, ", ", sprintf("%0.3fKhz", frequencies[mode]), " (of 20)"))
 }
 
-tmp = expand.grid(x = xs, y = ys, z = zs) %>% as.tibble %>% mutate(ux = approx(N, 1, w, x, y, z),
-                                                                   uy = approx(N, 2, w, x, y, z),
-                                                                   uz = approx(N, 3, w, x, y, z)) %>%
-  mutate(ux = x + (X / 4.0) * ux / max(abs(ux)),
-         uy = y + (Y / 4.0) * uy / max(abs(uy)),
-         uz = z + (Z / 4.0) * uz / max(abs(uz)))
+aspect3d(X, Y, Z)
+axesid = decorate3d()
 
-points3D(tmp$ux, tmp$uy, tmp$uz, colvar = NULL, pch = '.')
-plotdev(phi = 0, theta = 0)
-points3D(tmp$ux, tmp$uy, tmp$uz, colvar = NULL, pch = '.')
-plotdev(phi = 0, theta = 90)
-points3D(tmp$ux, tmp$uy, tmp$uz, colvar = NULL, pch = '.')
-plotdev(phi = -90, theta = 0)
-points3D(tmp$ux, tmp$uy, tmp$uz, colvar = NULL, pch = '.')
-plotdev(phi = -90, theta = 0)
-par(mar =rep(1.0, 4))
-
-dtostring = c("x", "y", "z")
-
-#tplot = 
-  bind_rows(expand.grid(c1 = ys, c2 = zs) %>% as.tibble %>% mutate(u = approx(N, d, w, xs[1], c1, c2), direction = 'along x\nc1 = y\nc2 = z', position = 0.0), 
-          expand.grid(c1 = ys, c2 = zs) %>% as.tibble %>% mutate(u = approx(N, d, w, xs[(R - 1) / 2], c1, c2), direction = 'along x\nc1 = y\nc2 = z', position = 0.5),
-          expand.grid(c1 = ys, c2 = zs) %>% as.tibble %>% mutate(u = approx(N, d, w, xs[R], c1, c2), direction = 'along x\nc1 = y\nc2 = z', position = 1.0),
-          expand.grid(c1 = xs, c2 = zs) %>% as.tibble %>% mutate(u = approx(N, d, w, c1, ys[1], c2), direction = 'along y\nc1 = x\nc2 = z', position = 0.0), 
-          expand.grid(c1 = xs, c2 = zs) %>% as.tibble %>% mutate(u = approx(N, d, w, c1, ys[(R - 1) / 2], c2), direction = 'along y\nc1 = x\nc2 = z', position = 0.5),
-          expand.grid(c1 = xs, c2 = zs) %>% as.tibble %>% mutate(u = approx(N, d, w, c1, ys[R], c2), direction = 'along y\nc1 = x\nc2 = z', position = 1.0),
-          expand.grid(c1 = xs, c2 = ys) %>% as.tibble %>% mutate(u = approx(N, d, w, c1, c2, zs[1]), direction = 'along z\nc1 = x\nc2 = y', position = 0.0), 
-          expand.grid(c1 = xs, c2 = ys) %>% as.tibble %>% mutate(u = approx(N, d, w, c1, c2, zs[(R - 1) / 2]), direction = 'along z\nc1 = x\nc2 = y', position = 0.5),
-          expand.grid(c1 = xs, c2 = ys) %>% as.tibble %>% mutate(u = approx(N, d, w, c1, c2, zs[R]), direction = 'along z\nc1 = x\nc2 = y', position = 1.0)) %>%
-  ggplot() +
-  geom_raster(aes(c1, c2, fill = u)) +
-  scale_fill_gradient2(low = "#0000FF", high = "#FF0000", mid = "white", midpoint = 0.0) +
-  facet_grid(direction ~ position, space = "free", scales = "free") +
-  ggtitle(sprintf("%s displacement, mode %d: %.3fKhz", dtostring[d], w - 6, sqrt(evals * 1e9) / (1e3 * pi * 2)))
-
-ggsave(filename = sprintf("ux_mode_%03d.png", w - 6), width = 10, height = 8, plot = tplot)
-#}
+rglwidget() %>%
+  playwidget(start = 0, stop = length(points) - 1, interval = 1,
+             subsetControl(value = 1, subsets = points))
